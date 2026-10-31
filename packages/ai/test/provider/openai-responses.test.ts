@@ -5,7 +5,6 @@ import {
   ai,
   AIError,
   HttpContext,
-  HttpOptions,
   LanguageModel,
   LLMEvent,
   Media,
@@ -1054,6 +1053,7 @@ describe("OpenAI Responses route", () => {
         ai.request({
           model: OpenAI.configure({ baseURL: "https://api.openai.test/v1/", apiKey: "test" }).responses("gpt-4.1-mini"),
           prompt: "Say hello.",
+          headers: { "x-request": "request" },
           http: {
             body: {
               model: "overlaid-model",
@@ -1061,7 +1061,6 @@ describe("OpenAI Responses route", () => {
               stream_options: { include_usage: true },
               background: true,
             },
-            headers: { "x-request": "request" },
             query: { mode: "test" },
           },
         }),
@@ -1297,7 +1296,7 @@ describe("OpenAI Responses route", () => {
   it.effect("uses exactly one HTTP request when no WebSocket executor is supplied", () =>
     Effect.gen(function* () {
       const attempts = yield* Ref.make(0)
-      yield* LLMClient.generate({ ...request, http: new HttpOptions({ body: { input: "raw-http-input" } }) }).pipe(
+      yield* LLMClient.generate({ ...request, http: { body: { input: "raw-http-input" } } }).pipe(
         Effect.provide(
           dynamicResponse((input) =>
             Effect.gen(function* () {
