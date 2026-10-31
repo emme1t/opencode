@@ -12,9 +12,9 @@ import {
   type TriggerCompactOptions,
 } from "./route/client.js"
 import {
-  GenerationOptions,
   InvalidProviderOutputError,
   InvalidRequestError,
+  generationFields,
   AIError,
   LLMEvent,
   LLMResponse,
@@ -30,6 +30,7 @@ import {
   ToolEntry,
   type ContentPart,
   type LanguageModelProviderOptions,
+  type GenerationOptionsFields,
   type TextRequest,
   type ToolEntryInput,
   withPartial,
@@ -46,13 +47,13 @@ export type PromptOrMessages =
   | { readonly messages: ReadonlyArray<Message | Message.Input>; readonly prompt?: never }
 
 interface TextRequestFields<Model extends LanguageModel>
-  extends BaseRequest<Model, NoInfer<LanguageModelProviderOptions<Model>>> {
+  extends BaseRequest<Model, NoInfer<LanguageModelProviderOptions<Model>>>,
+    GenerationOptionsFields {
   readonly id?: string
   readonly system?: string | SystemPart | ReadonlyArray<SystemPart>
   /** Sent in array order. Pass `tool(...)` values or wire entries such as hosted provider tools. */
   readonly tools?: ReadonlyArray<Tool | ToolEntryInput>
   readonly toolChoice?: ToolChoice.Input
-  readonly generation?: GenerationOptions.Input
   readonly cache?: CachePolicy
   /** Stable cache affinity for protocols that support provider-managed prompt caching. */
   readonly promptCacheKey?: string
@@ -274,7 +275,7 @@ export const request = <const Model extends LanguageModel>(input: TextRequestInp
     messages: input.prompt === undefined ? (input.messages ?? []).map(Message.make) : [Message.user(input.prompt)],
     tools: input.tools?.map((item) => ("_definition" in item ? item._definition : ToolEntry.make(item))) ?? [],
     toolChoice: input.toolChoice ? ToolChoice.make(input.toolChoice) : undefined,
-    generation: input.generation === undefined ? undefined : GenerationOptions.make(input.generation),
+    ...generationFields(input),
     providerOptions: input.providerOptions,
     headers: input.headers,
     fetch: input.fetch,
