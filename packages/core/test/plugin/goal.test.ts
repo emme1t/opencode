@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Deferred, Effect, Layer, Option, Schedule, Schema, Stream } from "effect"
-import { AIError, InvalidRequestError, LanguageModel, type LLMRequest } from "@opencode/ai/effect"
+import { AIError, InvalidRequestError, LanguageModel, type TextRequest } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
 import { TestLLM } from "@opencode/ai/testing"
 import { Agent } from "@opencode/core/agent"
@@ -296,7 +296,7 @@ describe("goal plugin", () => {
       const session = yield* project()
       const sessions = yield* Session.Service
       const llm = yield* TestLLM.Test
-      const summarize = (request: LLMRequest) => JSON.stringify(request.messages.at(-1)).includes("summar")
+      const summarize = (request: TextRequest) => JSON.stringify(request.messages.at(-1)).includes("summar")
       yield* serve((request) =>
         summarize(request) ? TestLLM.text("## Objective\n- Make CI green", "summary") : TestLLM.text("On it.", "work"),
       )
@@ -489,7 +489,7 @@ function reviewer(...replies: ReadonlyArray<string>) {
   const asked = { count: 0 }
   return {
     asked: () => asked.count,
-    respond: (request: LLMRequest) => {
+    respond: (request: TextRequest) => {
       if (!isReview(request)) return TestLLM.text("Working on it", "work")
       asked.count++
       return TestLLM.text(queue.shift() ?? '{"verdict":"done","reason":"Out of script."}', `review-${asked.count}`)
@@ -499,7 +499,7 @@ function reviewer(...replies: ReadonlyArray<string>) {
 
 // Each round starts with a tool call and ends with text once the tool result is in.
 function withTools(verdicts: ReturnType<typeof reviewer>) {
-  return (request: LLMRequest) => {
+  return (request: TextRequest) => {
     if (isReview(request)) return verdicts.respond(request)
     const last = JSON.stringify(request.messages.at(-1))
     return last.includes("tool") && !last.includes("untrusted_objective")
@@ -514,11 +514,11 @@ function overflow() {
   )
 }
 
-function isReview(request: LLMRequest) {
+function isReview(request: TextRequest) {
   return JSON.stringify(request.messages.at(-1)).includes(REVIEW_MARKER)
 }
 
-function serve(respond: (request: LLMRequest) => TestLLM.Response) {
+function serve(respond: (request: TextRequest) => TestLLM.Response) {
   return TestLLM.Test.use((llm) => llm.serve(respond))
 }
 

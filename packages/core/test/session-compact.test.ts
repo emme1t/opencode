@@ -1,6 +1,6 @@
 import type { FileSystem } from "@opencode/core/filesystem"
 import { describe, expect } from "bun:test"
-import { LLMClient, LLMEvent, LanguageModel, type LLMRequest } from "@opencode/ai/effect"
+import { LLMClient, LLMEvent, LanguageModel, type TextRequest } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols"
 import { Config } from "@opencode/core/config"
 import { Database } from "@opencode/core/database/database"
@@ -30,9 +30,9 @@ const model = LanguageModel.make({
   provider: "test",
   route: OpenAIChat.route,
 })
-let requests: LLMRequest[] = []
+let requests: TextRequest[] = []
 const client = Layer.mock(LLMClient.Service)({
-  stream: (request: LLMRequest) => {
+  stream: (request: TextRequest) => {
     requests.push(request)
     return Stream.make(LLMEvent.textDelta({ id: "summary", text: "manual session summary" }))
   },

@@ -7,7 +7,7 @@ import {
   HttpOptions,
   LanguageModel,
   type LLM,
-  LLMRequest,
+  type TextRequest,
   type Media,
   Message,
   SystemPart,
@@ -64,7 +64,7 @@ export type ExecuteError = Tool.Error | Permission.DeclinedError | QuestionTool.
 
 export interface Prepared<Event = SessionRequest> {
   readonly event: Event
-  readonly request: LLMRequest
+  readonly request: TextRequest
   readonly options: StreamOptions
   readonly retry: (event: PluginHooks.Domains["session"]["retry"]) => Effect.Effect<void>
   /** Runs a tool call against the tools this request advertised. */
@@ -80,7 +80,7 @@ export interface Input {
   readonly tools?: Tool.Snapshot
   readonly system: Array<SystemPart>
   readonly messages: Array<Message>
-  readonly toolChoice?: LLM.RequestInput["toolChoice"]
+  readonly toolChoice?: LLM.TextRequestInput["toolChoice"]
   /** Only the durable runner may use a stateful WebSocket. */
   readonly webSocket?: "session"
   /** Prompt size, measured by the provider or estimated. The default output limit leaves room for it. */
@@ -160,7 +160,7 @@ const mediaBytes = (media: Media.Asset) => {
 
 /** Replaces media with the returned text; messages without replacements are returned unchanged. */
 const replaceMedia = (
-  messages: LLMRequest["messages"],
+  messages: TextRequest["messages"],
   replace: (media: { mime: string; name: string | undefined; bytes: () => number }) => string | undefined,
 ) =>
   messages.map((message) => {
@@ -186,12 +186,12 @@ const replaceMedia = (
   })
 
 export const unsupportedParts = (
-  messages: LLMRequest["messages"],
+  messages: TextRequest["messages"],
   capabilities: Model.Capabilities,
   provider?: string,
 ) => replaceMedia(messages, (media) => unsupportedMedia(media.mime, media.name, capabilities, provider))
 
-export const boundImages = (messages: LLMRequest["messages"]) => {
+export const boundImages = (messages: TextRequest["messages"]) => {
   const isImage = (mime: string) => mime.toLowerCase().startsWith("image/")
   const sizes = messages.flatMap((message) =>
     message.content.flatMap((part) => {
@@ -324,13 +324,14 @@ export const layer = Layer.effect(
         modelHook.baseURL !== undefined && modelHook.baseURL !== baseURL
           ? base.model.route.with({ endpoint: { baseURL: modelHook.baseURL } })
           : base.model.route
-      const request = LLMRequest.update(base, {
+      const request = {
+        ...base,
         model: route === base.model.route ? base.model : LanguageModel.update(base.model, { route }),
         http: new HttpOptions({
           ...base.http,
           headers: Object.keys(modelHook.headers).length === 0 ? undefined : modelHook.headers,
         }),
-      })
+      }
       const hasHttpHooks =
         (yield* hooks.has("session", "http.request", model.ref.providerID)) ||
         (yield* hooks.has("session", "http.response", model.ref.providerID))

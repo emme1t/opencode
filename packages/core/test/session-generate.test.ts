@@ -9,7 +9,7 @@ import {
   SystemPart,
   ToolDefinition,
   TransportError,
-  type LLMRequest,
+  type TextRequest,
 } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols"
 import { TestLLM } from "@opencode/ai/testing"
@@ -58,7 +58,7 @@ import { Effect, Fiber, Layer, Schema, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import { testEffect } from "./lib/effect"
 
-const requests: LLMRequest[] = []
+const requests: TextRequest[] = []
 const options: Array<StreamOptions | undefined> = []
 let instruction: string | Instructions.Unavailable = "Initial context"
 const sessionID = SessionSchema.ID.make("ses_generate_test")
@@ -201,7 +201,7 @@ const durableState = (db: Database.Interface["db"], sessionID: SessionSchema.ID)
     session: db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie),
   })
 
-const userTexts = (request: LLMRequest) =>
+const userTexts = (request: TextRequest) =>
   request.messages.flatMap((message) =>
     message.role === "user"
       ? message.content.flatMap((content) => (content.type === "text" ? [content.text] : []))

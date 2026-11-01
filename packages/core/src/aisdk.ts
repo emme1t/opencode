@@ -25,7 +25,7 @@ import {
   TransportError,
   ToolResultValue,
   type ContentPart,
-  type LLMRequest,
+  type TextRequest,
   type Media,
   type ToolDefinition,
   type UsageInput,
@@ -479,7 +479,7 @@ function mapBodyToProviderOptions(model: RuntimeInfo, packageName: string) {
 }
 
 function callOptions(
-  request: LLMRequest,
+  request: TextRequest,
   packageName: string | undefined,
   modelID: ID,
   optionKey: string,
@@ -502,7 +502,7 @@ function callOptions(
   }
 }
 
-function prompt(request: LLMRequest): LanguageModelV3Prompt {
+function prompt(request: TextRequest): LanguageModelV3Prompt {
   const system = request.system
     .map((part) => part.text)
     .filter(Boolean)
@@ -527,7 +527,7 @@ function prompt(request: LLMRequest): LanguageModelV3Prompt {
   return [{ role: "system", content: system }, ...messages]
 }
 
-function message(input: LLMRequest["messages"][number]): LanguageModelV3Message[] {
+function message(input: TextRequest["messages"][number]): LanguageModelV3Message[] {
   switch (input.role) {
     case "system":
       // The initial privileged prompt lives in `request.system` and is prepended above. A system message here is a
@@ -553,7 +553,7 @@ function message(input: LLMRequest["messages"][number]): LanguageModelV3Message[
   }
 }
 
-function toolMessage(input: LLMRequest["messages"][number]) {
+function toolMessage(input: TextRequest["messages"][number]) {
   const media: UserContent = []
   const content = input.content.flatMap((part) => {
     if (part.type !== "tool-result" || part.result.type !== "content") return toolResultPart(part)
@@ -684,14 +684,14 @@ function tool(input: ToolDefinition): LanguageModelV3FunctionTool {
   }
 }
 
-function toolChoice(input: LLMRequest["toolChoice"]): LanguageModelV3ToolChoice | undefined {
+function toolChoice(input: TextRequest["toolChoice"]): LanguageModelV3ToolChoice | undefined {
   if (!input) return undefined
   if (input.type === "tool") return input.name === undefined ? undefined : { type: "tool", toolName: input.name }
   return { type: input.type }
 }
 
 function requestProviderOptions(
-  input: LLMRequest["providerOptions"],
+  input: TextRequest["providerOptions"],
   packageName: string | undefined,
   modelID: ID,
   optionKey: string,

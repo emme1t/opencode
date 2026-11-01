@@ -5,7 +5,7 @@ import {
   CompactionCheckpointResponse,
   HttpContext,
   LLMEvent,
-  LLMRequest,
+  type TextRequest,
   Message,
   SystemPart,
   LanguageModel,
@@ -96,20 +96,21 @@ type ToolBarrier = {
   active: number
   maxActive: number
 }
-class LLMRequests extends Context.Service<LLMRequests, LLMRequest[]>()("test/LLMRequests") {}
+class LLMRequests extends Context.Service<LLMRequests, TextRequest[]>()("test/LLMRequests") {}
 const testLLM = Layer.unwrap(
   Effect.sync(() => {
-    const requests: LLMRequest[] = []
+    const requests: TextRequest[] = []
     return TestLLM.testLayer({
       fallback: [],
       transformRequest: (request) => {
-        const transformed = LLMRequest.update(request, {
+        const transformed = {
+          ...request,
           system: request.system.map((part) => ({
             ...part,
             text: part.text.replace(emptyCodeMode, ""),
           })),
           tools: request.tools.filter((tool) => tool.name !== "execute"),
-        })
+        }
         requests.push(transformed)
         return transformed
       },
@@ -705,13 +706,13 @@ const setupOverflowRecovery = Effect.fnUntraced(function* (s: Scenario) {
   s.requests.length = 0
 })
 
-const messageTexts = (request: LLMRequest, role: "user" | "system") =>
+const messageTexts = (request: TextRequest, role: "user" | "system") =>
   request.messages.flatMap((message) =>
     message.role === role ? message.content.flatMap((content) => (content.type === "text" ? [content.text] : [])) : [],
   )
-const userTexts = (request: LLMRequest) => messageTexts(request, "user")
-const systemTexts = (request: LLMRequest) => messageTexts(request, "system")
-const messageRoles = (request: LLMRequest | undefined) => request?.messages.map((message) => message.role)
+const userTexts = (request: TextRequest) => messageTexts(request, "user")
+const systemTexts = (request: TextRequest) => messageTexts(request, "system")
+const messageRoles = (request: TextRequest | undefined) => request?.messages.map((message) => message.role)
 
 const recordedEventTypes = (id: Session.ID) =>
   Effect.gen(function* () {
@@ -2822,8 +2823,8 @@ describe("SessionRunnerLLM", () => {
         expect(stored).not.toHaveProperty("native")
 
         // Compare wire content without the cache breakpoints that move to the new final message.
-        const before = yield* compileRequest(LLMRequest.update(normal, { cache: "none" }))
-        const after = yield* compileRequest(LLMRequest.update(compact, { cache: "none" }))
+        const before = yield* compileRequest({ ...normal, cache: "none" })
+        const after = yield* compileRequest({ ...compact, cache: "none" })
         const key = route === OpenAIResponses.route ? "input" : "messages"
         const input = Schema.decodeUnknownSync(Schema.Array(Schema.Unknown))
         const prefix = input(before.body[key])

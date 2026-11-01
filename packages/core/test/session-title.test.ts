@@ -7,7 +7,7 @@ import {
   Message,
   SystemPart,
   TransportError,
-  type LLMRequest,
+  type TextRequest,
 } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols"
 import { Agent } from "@opencode/core/agent"
@@ -37,7 +37,7 @@ import { Money } from "@opencode/schema/money"
 import { Deferred, Effect, Fiber, Layer, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
-let requests: LLMRequest[] = []
+let requests: TextRequest[] = []
 let selectedSmall: Model.Info | undefined
 let selectedPrimary: Model.Info | undefined
 let selections: Array<Session.Info["model"]> = []
@@ -82,7 +82,7 @@ const successfulTitle = () =>
   )
 let titleStream: () => Stream.Stream<LLMEvent, AIError> = successfulTitle
 const client = Layer.mock(LLMClient.Service)({
-  stream: (request: LLMRequest) => {
+  stream: (request: TextRequest) => {
     requests.push(request)
     return titleStream()
   },

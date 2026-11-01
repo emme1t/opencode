@@ -9,7 +9,7 @@ import {
   isContextOverflowFailure,
   LLMClient,
   LLMEvent,
-  LLMRequest,
+  type TextRequest,
   Message,
   type ToolEntry,
   UnknownProviderError,
@@ -477,10 +477,10 @@ export const layer = Layer.effect(
 
       // Hooks saw the request without the summary prompt, so it is appended here. A reply that ignores the
       // template gets one reminder before it counts as a failure.
-      const send = (request: LLMRequest, size?: Estimate) =>
+      const send = (request: TextRequest, size?: Estimate) =>
         Effect.gen(function* () {
           const prompted = fitOutput(
-            LLMRequest.update(request, { messages: [...request.messages, Message.user(prompt)] }),
+            { ...request, messages: [...request.messages, Message.user(prompt)] },
             context.model.limit,
             size && { ...size, estimated: size.estimated + Token.estimate(prompt) },
           )
@@ -488,7 +488,7 @@ export const layer = Layer.effect(
           if (filled(reply.text)) return reply
 
           const nudged = fitOutput(
-            LLMRequest.update(prompted, { messages: [...prompted.messages, Message.user(NUDGE)] }),
+            { ...prompted, messages: [...prompted.messages, Message.user(NUDGE)] },
             context.model.limit,
             size && { ...size, estimated: size.estimated + Token.estimate(prompt) + Token.estimate(NUDGE) },
           )
@@ -559,7 +559,7 @@ export const layer = Layer.effect(
           }),
         )
 
-      const send = (request: LLMRequest) => {
+      const send = (request: TextRequest) => {
         if (ai.canCompact(request, { mechanism: "trigger" })) {
           return Effect.gen(function* () {
             const history = yield* SessionHistory.load(db, context.session.id, "local").pipe(Effect.orDie)
@@ -596,8 +596,8 @@ export const layer = Layer.effect(
       trigger: Trigger,
       prepared: Prepared,
       target: number,
-      send: (request: LLMRequest, size?: Estimate) => Effect.Effect<Result, AIError | Failure>,
-      shrink: { readonly fit: number; readonly history: LLMRequest; readonly measured?: Estimate } = {
+      send: (request: TextRequest, size?: Estimate) => Effect.Effect<Result, AIError | Failure>,
+      shrink: { readonly fit: number; readonly history: TextRequest; readonly measured?: Estimate } = {
         fit: target,
         history: prepared.request,
       },
@@ -689,7 +689,7 @@ export const layer = Layer.effect(
      * detail is lost from the oldest history first and whole exchanges are omitted only as a last resort. The newest
      * exchange is never omitted; undefined when the transcript cannot fit even so.
      */
-    const flattenAndDropOldest = (request: LLMRequest, context: SessionContext.Loaded, target: number) => {
+    const flattenAndDropOldest = (request: TextRequest, context: SessionContext.Loaded, target: number) => {
       const previous = previousCompaction(context.messages)
       const end =
         request.messages.findLastIndex(
@@ -756,12 +756,12 @@ export const layer = Layer.effect(
         .map((renders, index) => renders[levels[index]])
         .filter(Boolean)
         .join("\n\n")
-      return LLMRequest.update(request, { tools: [], messages: [...lead, Message.user(note(omitted) + text)] })
+      return { ...request, tools: [], messages: [...lead, Message.user(note(omitted) + text)] }
     }
 
     const stream = (
       context: SessionContext.Loaded,
-      request: LLMRequest,
+      request: TextRequest,
       options: StreamOptions,
       background?: Background,
     ) => {
@@ -997,10 +997,10 @@ const splitConversation = (messages: ReadonlyArray<SessionMessage.Info>, keep: n
 }
 
 /** The request without the retained tail, which starts at the message with ID `from`. */
-const withoutTail = (request: LLMRequest, from: SessionMessage.ID | undefined) => {
+const withoutTail = (request: TextRequest, from: SessionMessage.ID | undefined) => {
   const index = from === undefined ? -1 : request.messages.findIndex((message) => message.id === from)
   if (index < 0) return request
-  return LLMRequest.update(request, { messages: request.messages.slice(0, index) })
+  return { ...request, messages: request.messages.slice(0, index) }
 }
 
 const recentStart = (
@@ -1190,7 +1190,7 @@ const measuredPrompt = (context: SessionContext.Loaded) => {
  * window, so that margin alone would cut a summary near its target to the minimum; there it still gets up to
  * `SUMMARY_OUTPUT_FLOOR` of the room left without the margin.
  */
-const fitOutput = (request: LLMRequest, limit: SessionContext.Loaded["model"]["limit"], size?: Estimate) => {
+const fitOutput = (request: TextRequest, limit: SessionContext.Loaded["model"]["limit"], size?: Estimate) => {
   const current = request.generation?.maxTokens
   if (current === undefined) return request
   const input = size ?? { measured: 0, estimated: estimateRequest(request) }
@@ -1202,10 +1202,10 @@ const fitOutput = (request: LLMRequest, limit: SessionContext.Loaded["model"]["l
     ),
   )
   if (maxTokens === current) return request
-  return LLMRequest.update(request, { generation: { ...request.generation, maxTokens } })
+  return { ...request, generation: { ...request.generation, maxTokens } }
 }
 
-const estimateRequest = (request: Pick<LLMRequest, "system" | "tools" | "messages">) =>
+const estimateRequest = (request: Pick<TextRequest, "system" | "tools" | "messages">) =>
   request.system.reduce((sum, part) => sum + Token.estimate(part.text), 0) +
   request.tools.reduce((sum, tool) => sum + estimateTool(tool), 0) +
   request.messages.reduce((sum, message) => sum + estimateMessage(message), 0)

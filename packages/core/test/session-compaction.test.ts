@@ -6,7 +6,7 @@ import {
   LanguageModel,
   Message,
   ToolDefinition,
-  type LLMRequest,
+  type TextRequest,
 } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols"
 import { Database } from "@opencode/core/database/database"
@@ -46,10 +46,10 @@ import { DateTime, Deferred, Effect, Fiber, Layer, Schema, Stream } from "effect
 import { asc, eq, inArray, sql } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
 
-let requests: LLMRequest[] = []
+let requests: TextRequest[] = []
 /** Runs before a request's response streams; tests hold it back to keep a background summary in flight. */
 let beforeResponse: Effect.Effect<void> = Effect.void
-let reject: ((request: LLMRequest) => boolean) | undefined
+let reject: ((request: TextRequest) => boolean) | undefined
 const model = LanguageModel.make({
   id: "summary-model",
   provider: "test",
@@ -66,7 +66,7 @@ const cost = [
   },
 ]
 const client = Layer.mock(LLMClient.Service)({
-  stream: (request: LLMRequest) => {
+  stream: (request: TextRequest) => {
     requests.push(request)
     if (reject?.(request)) {
       return Stream.make(LLMEvent.providerError({ message: "prompt too long", classification: "context-overflow" }))
