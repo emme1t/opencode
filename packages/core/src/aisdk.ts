@@ -497,7 +497,7 @@ function callOptions(
     seed: request.generation?.seed,
     tools: flattened.tools.map(tool),
     toolChoice: toolChoice(request.toolChoice),
-    headers: request.http?.headers,
+    headers: request.headers,
     providerOptions: requestProviderOptions(request.providerOptions, packageName, modelID, optionKey),
   }
 }
